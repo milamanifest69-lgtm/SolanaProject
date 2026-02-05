@@ -29,3 +29,12 @@ while True:
     check_divergence()
     # Изчакване от 1 час (3600 секунди)
     time.sleep(3600)
+    import requests
+import os
+
+def send_telegram_msg(message):
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    url = f"https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&text={message}"
+    requests.get(url)
+    send_telegram_msg("🚀 Система Mila: Връзката е установена. Мониторингът на Solana започва!")

@@ -8,7 +8,7 @@ api_key = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=api_key)
 
 # ИЗПОЛЗВАМЕ МОДЕЛА ОТ ТВОЯ СПИСЪК
-model = genai.GenerativeModel('gemini-2.0-flash')
+model = genai.GenerativeModel('gemini-2.5-flash')
 
 print("--- ТЕСТ НА ПЛАТЕНА ВРЪЗКА (Nivel 1) ---")
 try:

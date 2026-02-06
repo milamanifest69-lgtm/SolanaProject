@@ -1,25 +1,22 @@
 import os
-import time
 import google.generativeai as genai
 from dotenv import load_dotenv
 
+# Зареждаме новия платен ключ
 load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+api_key = os.getenv("GEMINI_API_KEY")
 
-# Използваме Pro модела за по-висока стабилност при свободен трафик
-model = genai.GenerativeModel('gemini-1.0-pro')
+genai.configure(api_key=api_key)
 
-def try_connect():
-    for attempt in range(3):
-        try:
-            print(f"Опит за връзка {attempt + 1}...")
-            response = model.generate_content("Mila, confirm connection.")
-            if response.text:
-                print(f"System: {response.text.strip()}")
-                return True
-        except Exception:
-            print("System status: Busy. Waiting...")
-            time.sleep(5) # Кратко изчакване преди нов опит
-    return False
+# Използваме модела директно без цикли за чакане
+model = genai.GenerativeModel('gemini-pro')
 
-try_connect()
+print("--- Тестване на ПЛАТЕНАТА връзка (Nivel 1) ---")
+try:
+    response = model.generate_content("Mila, are we online with the paid key?")
+    print("Отговор от Mila:")
+    print(response.text)
+    print("------------------------------------------")
+    print("СТАТУС: Връзката е УСПЕШНА. Готови сме за Cloud!")
+except Exception as e:
+    print(f"Грешка: {e}")

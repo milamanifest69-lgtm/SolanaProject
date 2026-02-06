@@ -5,17 +5,15 @@ from dotenv import load_dotenv
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 
-if not api_key:
-    print("ГРЕШКА: Липсва ключ в .env!")
-else:
-    genai.configure(api_key=api_key)
-    # Използваме 'gemini-pro', който е универсален за тази библиотека
-    model = genai.GenerativeModel('gemini-pro')
+genai.configure(api_key=api_key)
 
-    print("--- СТАРТИРАНЕ НА AI СИСТЕМАТА (PAID MODE) ---")
-    try:
-        response = model.generate_content("Mila, confirm connection.")
-        print(f"\nОТГОВОР: {response.text}")
-        print("\nСТАТУС: УСПЕШНА ВРЪЗКА!")
-    except Exception as e:
-        print(f"\nГРЕШКА: {e}")
+# ИЗПОЛЗВАМЕ МОДЕЛА ОТ ТВОЯ СПИСЪК
+model = genai.GenerativeModel('gemini-2.0-flash')
+
+print("--- ТЕСТ НА ПЛАТЕНА ВРЪЗКА (Nivel 1) ---")
+try:
+    response = model.generate_content("Mila, are we online?")
+    print(f"ОТГОВОР: {response.text}")
+    print("СТАТУС: УСПЕШНО!")
+except Exception as e:
+    print(f"ГРЕШКА: {e}")

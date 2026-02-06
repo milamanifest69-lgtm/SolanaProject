@@ -3,8 +3,18 @@ import time
 import requests
 from dotenv import load_dotenv
 
-# 1. Зареждане на ключовете
 load_dotenv()
+
+def get_real_sol_price():
+    """Извлича реалната цена на SOL от Binance"""
+    try:
+        url = "https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDC"
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        return float(data['price'])
+    except Exception as e:
+        print(f"Грешка при вземане на цена: {e}")
+        return None
 
 def send_telegram_msg(message):
     token = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -15,26 +25,23 @@ def send_telegram_msg(message):
         try:
             requests.get(url, params=params)
         except Exception as e:
-            print(f"Грешка: {e}")
-
-def check_divergence():
-    # Данни от твоя последен терминал
-    price = 79.60 
-    vol = "11176.1M"
-    timestamp = time.strftime("%H:%M:%S")
-    print(f"[{timestamp}] SOL: ${price} | Vol: {vol}")
-    return price, vol
+            print(f"Грешка при Telegram: {e}")
 
 # --- ГЛАВНО ИЗПЪЛНЕНИЕ ---
 
-# СТЪПКА 1: Изпращаме тестово съобщение веднага
-print("Опит за изпращане към Telegram...")
-send_telegram_msg("🚀 Базата е завършена! Mila е онлайн и следи Solana.")
+print("Solana Monitor Active с реални данни...")
+send_telegram_msg("🚀 Mila е рестартирана и вече следи реалния пазар!")
 
-# СТЪПКА 2: Стартираме мониторинга
-print("Solana Divergence Monitor Active...")
 while True:
-    check_divergence()
-    # Изпращаме статус в Telegram на всеки час
-    send_telegram_msg(f"📊 Текуща цена на SOL: ${79.60}")
+    current_price = get_real_sol_price()
+    
+    if current_price:
+        timestamp = time.strftime("%H:%M:%S")
+        log_msg = f"[{timestamp}] SOL: ${current_price}"
+        print(log_msg)
+        
+        # Изпращаме РЕАЛНАТА цена в Telegram
+        send_telegram_msg(f"📊 Актуална цена на SOL: ${current_price}")
+    
+    # Изчакваме 1 час (3600 секунди) за следващото обновяване
     time.sleep(3600)

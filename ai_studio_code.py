@@ -19,14 +19,14 @@ class MilaCore:
         self.tg_token = os.getenv("TELEGRAM_BOT_TOKEN")
         self.tg_chat_id = os.getenv("TELEGRAM_CHAT_ID")
         self.hour = datetime.datetime.now().hour
-        # Вътрешни данни (Fallback) - Използваме чисти числа (Float/Int)
+        # Вътрешни данни (Fallback) - Чисти Python числа
         self.internal_alpha = {
             'SOL': 1850000000.0, 
             'JTO': 125000000.0,  
             'PYTH': 85000000.0,  
             'JUP': 310000000.0   
         }
-        print(f"--- MILA TERMINAL v4.2 | ALPHA_FORMAT_ACTIVE | {datetime.datetime.now().strftime('%H:%M')} ---")
+        print(f"--- MILA TERMINAL v4.3 | LEADERSHIP_MODE_ACTIVE | {datetime.datetime.now().strftime('%H:%M')} ---")
 
     def human_format(self, num, pos=None):
         """Превръща числата в професионален M/B формат за етикетите на графиката"""
@@ -79,7 +79,7 @@ class MilaCore:
         plt.yticks(family='monospace', color=c_purple, fontsize=8)
         ax.yaxis.set_major_formatter(ticker.FuncFormatter(self.human_format))
         
-        plt.title(f" > MILA_TERMINAL_V4.2: {title}", loc='left', color=c_green, family='monospace', fontsize=9, pad=15)
+        plt.title(f" > MILA_TERMINAL_V4.3: {title}", loc='left', color=c_green, family='monospace', fontsize=9, pad=15)
         
         path = "mila_output.png"
         plt.tight_layout()
@@ -113,22 +113,24 @@ class MilaCore:
             labels, values = ['SOL', 'JUP', 'PYTH', 'RAY'], [1900000000.0, 450000000.0, 180000000.0, 110000000.0]
             chart_path = self.generate_terminal_chart(labels, values, title, 'line')
 
-        # ALPHA FORMAT PROMPT
+        # NEW STRATEGIC PROMPT (AUTHORITY MODE)
         prompt = f"""
-        Mila Core Intelligence. Data Input: {title} | {labels} | {values}.
+        Mila Core Intelligence Unit. Mode: {title} | Data: {labels} | {values}.
         
-        Construct an X update using 'The Alpha Format':
-        Line 1 (Hook): Direct statement on Solana network intensity.
-        Line 2 (Data): List key metrics (Vol, Price, or Ratio) from input.
-        Line 3 (Insight): Cold, analytical conclusion (No explanations).
-        Line 4 (Mission): Strategic goal: 100 followers for Magic Eden access.
+        Generate a strategic X update using the revised Alpha Format:
+        Line 1 (Hook): Cold statement on Solana network status.
+        Line 2 (Data): Raw institutional metrics (Vol, Price, MEV, or Liq).
+        Line 3 (Insight): Strategic conclusion (No filler, just pure alpha).
+        Line 4 (Mission): Use one of the following:
+           - Intelligence Status: Monitoring institutional capital flows.
+           - Strategic Focus: Identifying network inefficiencies.
+           - Objective: Cross-chain liquidity displacement analysis.
 
         Rules:
-        - Professional Trading Terminal Tone.
+        - NEVER mention followers, milestones, or 'Magic Eden access'.
+        - Tone: Cold, analytical leader.
         - Strictly under 270 characters.
         - Language: English only.
-        - No excessive emojis. 
-        - Assume elite audience.
         """
 
         try:
@@ -147,7 +149,7 @@ class MilaCore:
             url_photo = f"https://api.telegram.org/bot{self.tg_token}/sendPhoto"
             with open(photo_path, 'rb') as f:
                 requests.post(url_photo, data={"chat_id": self.tg_chat_id}, files={"photo": f})
-        print(f"[Mila] Alpha Cycle Complete: {theme}")
+        print(f"[Mila] Strategic Cycle Complete: {theme}")
 
 if __name__ == "__main__":
     mila = MilaCore()

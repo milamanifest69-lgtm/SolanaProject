@@ -1,3 +1,0 @@
-1.python solana_ecosystem_radar.py
-
-2.python divergence_monitor.py

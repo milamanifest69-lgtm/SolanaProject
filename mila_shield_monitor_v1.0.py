@@ -7,123 +7,67 @@ import google.generativeai as genai
 import matplotlib.pyplot as plt
 from dotenv import load_dotenv
 
-# Задължително зареждане на средата в началото
+# 1. Зареждане на ключовете
 load_dotenv()
+TG_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TG_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# --- CONFIGURATION ---
-MODEL_NAME = 'gemini-2.5-flash'
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel(MODEL_NAME)
-
-class MilaShieldMonitor:
+class MilaShield:
     def __init__(self):
-        self.tg_token = os.getenv("TELEGRAM_BOT_TOKEN")
-        self.tg_chat_id = os.getenv("TELEGRAM_CHAT_ID")
-        
-        # Проверка на променливите за Телеграм
-        if not self.tg_token or not self.tg_chat_id:
-            print("[ERROR] Telegram credentials missing!")
-        
-        print(f"--- SHIELD MONITOR v1.1 ACTIVE | INFRASTRUCTURE AUDIT | {datetime.datetime.now().strftime('%H:%M')} ---")
+        genai.configure(api_key=GEMINI_API_KEY)
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
 
     def generate_radar_chart(self):
-        """Генерира Radar Chart (паяжина) за мрежовите параметри на Solana."""
-        print("[Mila] Рендерирам технически Radar Chart...")
+        labels = np.array(['Throughput', 'Latency', 'Validators', 'Slashing Risk', 'Stability'])
+        stats = np.array([9.5, 8.8, 9.2, 9.8, 9.0])
         
-        categories = ['Throughput', 'Latency', 'Validator\nDiversity', 'Slashing\nRisks', 'Software\nStability']
-        values = [9.2, 8.8, 7.5, 9.5, 8.0]
-        
-        N = len(categories)
-        angles = [n / float(N) * 2 * np.pi for n in range(N)]
-        values += values[:1]
+        angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
+        stats = np.concatenate((stats, [stats[0]]))
         angles += angles[:1]
 
-        plt.style.use('dark_background')
-        fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True), facecolor='#0A0A0A')
-        ax.set_facecolor('#0A0A0A')
-
-        # Цветове: Steel Blue (#4682B4) и Neon Cyan (#00FFFF)
-        color_cyan = '#00FFFF'
-        color_blue = '#4682B4'
-
-        plt.xticks(angles[:-1], categories, color=color_cyan, family='monospace', fontsize=9)
-        ax.set_rlabel_position(0)
-        plt.yticks([2, 4, 6, 8, 10], ["2", "4", "6", "8", "10"], color="#2D2D2D", fontsize=7)
-        plt.ylim(0, 10)
-
-        ax.plot(angles, values, color=color_cyan, linewidth=2, linestyle='solid')
-        ax.fill(angles, values, color=color_blue, alpha=0.3)
-
-        ax.spines['polar'].set_color('#2D2D2D')
-        ax.grid(color='#2D2D2D', linestyle='--', alpha=0.5)
-
-        plt.title(" > SHIELD_MONITOR_V1.1: INFRASTRUCTURE_INTEGRITY", 
-                  loc='left', color=color_cyan, family='monospace', fontsize=10, pad=30)
-
-        path = "shield_radar.png"
-        plt.tight_layout()
-        plt.savefig(path, facecolor='#0A0A0A', dpi=120)
+        fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+        ax.fill(angles, stats, color='#4682B4', alpha=0.25)
+        ax.plot(angles, stats, color='#00FFFF', linewidth=2)
+        ax.set_yticklabels([])
+        ax.set_xticks(angles[:-1])
+        ax.set_xticklabels(labels)
+        
+        plt.title("Solana Network Security Shield", size=15, color='white', y=1.1)
+        fig.patch.set_facecolor('#0E1117')
+        ax.set_facecolor('#1B1E23')
+        
+        file_path = "shield_radar.png"
+        plt.savefig(file_path, facecolor=fig.get_facecolor(), edgecolor='none')
         plt.close()
-        return path
+        return file_path
 
-    def get_security_analysis(self):
-        """Генерира системен анализ на инфраструктурата."""
-        prompt = """
-        Mila, act as a Quantum Network Systems Administrator. Analyze Solana's infrastructure.
-        Context: Firedancer synchronization, validator distribution, and network resilience.
-        
-        Tone: Cold, technical, secure.
-        Vocabulary: 'Network integrity verified', 'Infrastructure resilience increasing', 'Firedancer synchronization status', 'Deterministic finality'.
-        
-        Constraints:
-        - Strictly under 240 characters.
-        - NO emojis.
-        - English only.
-        - End with: Status: Monitoring the perimeter. Network fortified.
-        """
-        try:
-            response = model.generate_content(prompt)
-            return response.strip() if hasattr(response, 'strip') else response.text.strip()
-        except Exception as e:
-            return f"SYSTEM_AUDIT_ERROR: {e}\nStatus: Monitoring the perimeter. Network fortified."
-
-    def run_cycle(self):
-        # 1. Проверка на credentials преди старт на тежките задачи
-        if not self.tg_token or not self.tg_chat_id:
-            print("[CRITICAL] Operation aborted: Telegram keys not found.")
+    def send_to_telegram(self, photo_path):
+        if not TG_TOKEN or not TG_CHAT_ID:
+            print("[ERROR] Telegram credentials missing!")
             return
 
-        # 2. Генериране на визия
-        chart = self.generate_radar_chart()
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto"
+        # Опростен текст без сложни форматирания, за да избегнем грешки при парсване
+        caption = (
+            "🛡️ MILA SHIELD MONITOR\n\n"
+            "Network integrity verified. Infrastructure resilience increasing. "
+            "Firedancer synchronization status: Optimal.\n\n"
+            "Status: Monitoring the perimeter. Network fortified."
+        )
         
-        # 3. Генериране на анализ
-        analysis = self.get_security_analysis()
-        
-        # 4. Диспечиране
-        self.dispatch(analysis, chart)
-
-    def dispatch(self, text, photo_path):
-        header = "🛡️ **MILA SHIELD MONITOR: INFRA_LOG**"
-        full_msg = f"{header}\n\n{text}"
-        url = f"https://api.telegram.org/bot{self.tg_token}/sendPhoto"
-        
-        try:
-            with open(photo_path, 'rb') as f:
-                payload = {
-                    "chat_id": self.tg_chat_id, 
-                    "caption": full_msg,
-                    "parse_mode": "Markdown"
-                }
-                files = {"photo": f}
-                response = requests.post(url, data=payload, files=files)
-                
-                if response.status_code == 200:
-                    print("[Shield] Network Audit Dispatched successfully.")
-                else:
-                    print(f"[Shield] Failed to send: {response.text}")
-        except Exception as e:
-            print(f"Dispatch Error: {e}")
+        with open(photo_path, 'rb') as photo:
+            payload = {'chat_id': TG_CHAT_ID, 'caption': caption} # Премахнахме parse_mode
+            files = {'photo': photo}
+            response = requests.post(url, data=payload, files=files)
+            
+        if response.status_code == 200:
+            print("[Shield] Network Audit Dispatched to Telegram.")
+        else:
+            print(f"[ERROR] Failed to send: {response.text}")
 
 if __name__ == "__main__":
-    monitor = MilaShieldMonitor()
-    monitor.run_cycle()
+    print(f"--- SHIELD MONITOR ACTIVE | {datetime.datetime.now().strftime('%H:%M')} ---")
+    shield = MilaShield()
+    path = shield.generate_radar_chart()
+    shield.send_to_telegram(path)

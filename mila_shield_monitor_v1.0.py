@@ -7,6 +7,9 @@ import google.generativeai as genai
 import matplotlib.pyplot as plt
 from dotenv import load_dotenv
 
+# Зареждане на променливите от .env файла
+load_dotenv()
+
 # --- CONFIGURATION ---
 load_dotenv()
 MODEL_NAME = 'gemini-2.5-flash'

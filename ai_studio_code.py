@@ -3,6 +3,7 @@ import time
 import datetime
 import requests
 import google.generativeai as genai
+import matplotlib.pyplot as plt
 from dotenv import load_dotenv
 
 # Инициализация
@@ -16,91 +17,75 @@ class MilaCore:
         self.tg_token = os.getenv("TELEGRAM_BOT_TOKEN")
         self.tg_chat_id = os.getenv("TELEGRAM_CHAT_ID")
         self.last_request_time = 0
-        print(f"--- MILA CORE V2.0 СТАРТИРАНА | {datetime.datetime.now()} ---")
+        print(f"--- MILA CORE V2.1 (VISUAL EDITION) СТАРТИРАНА ---")
 
-    # --- RATE LIMIT CONTROL ---
     def _rate_limit_check(self):
-        """Осигурява спазването на 60 RPM (1 заявка в секунда)"""
         elapsed = time.time() - self.last_request_time
-        if elapsed < 1.1:  # Малко над 1 сек за сигурност
-            time.sleep(1.1 - elapsed)
+        if elapsed < 1.2:
+            time.sleep(1.2 - elapsed)
         self.last_request_time = time.time()
 
-    # --- МОДУЛ 1: ТЕХНИЧЕСКИ АНАЛИЗ (Divergences) ---
-    def get_technical_analysis(self):
-        # Тук симулираме логика за RSI/MACD, докато интегрираме пълните данни
-        # В реална ситуация тук се подават ценовите масиви
-        print("[Mila] Анализирам RSI/MACD дивергенции за SOL...")
-        return "SOL Bullish Divergence detected on 4H (RSI 42 -> 48 while price stabilized)."
+    # --- МОДУЛ: ГЕНЕРИРАНЕ НА ГРАФИКА ---
+    def generate_liquidity_chart(self, tokens):
+        """Създава професионална графика за ликвидните потоци"""
+        print("[Mila] Генерирам визуален анализ...")
+        try:
+            names = [t.get('symbol', 'Unknown') for t in tokens]
+            liquidity = [t.get('v24hUSD', 0) for t in tokens] # Използваме 24ч обем като метрика
 
-    # --- МОДУЛ 2: ЛИКВИДНОСТ (Birdeye) ---
+            plt.figure(figsize=(10, 6))
+            plt.style.use('dark_background')
+            colors = ['#14F195', '#9945FF', '#00C2FF', '#FF007A', '#F0E442'] # Solana Colors
+            
+            bars = plt.bar(names, liquidity, color=colors)
+            plt.title('Top Trending Solana Tokens by 24h Volume', fontsize=16, color='white')
+            plt.xlabel('Token Symbol', fontsize=12)
+            plt.ylabel('Volume (USD)', fontsize=12)
+            
+            # Запазване на снимката
+            chart_path = "mila_chart.png"
+            plt.savefig(chart_path)
+            plt.close()
+            return chart_path
+        except Exception as e:
+            print(f"Chart Error: {e}")
+            return None
+
     def get_birdeye_trending(self):
-        print("[Mila] Сканирам Birdeye за ликвидни потоци...")
         self._rate_limit_check()
         url = "https://public-api.birdeye.so/public/trending?list_iteration=10"
         headers = {"X-API-KEY": self.birdeye_key}
         try:
             response = requests.get(url, headers=headers).json()
-            tokens = response.get('data', {}).get('tokens', [])
-            return tokens[:5]
-        except Exception as e:
-            return f"Error fetching Birdeye: {e}"
+            return response.get('data', {}).get('tokens', [])[:5]
+        except: return []
 
-    # --- МОДУЛ 3: AI AGENT TRACKER ---
-    def track_ai_agents(self):
-        print("[Mila] Следя активността на топ AI агентите...")
-        # Списък с токени/проекти, които движат AI метата на Solana
-        ai_agents = ["$GOAT (Truth Terminal)", "$ZEREBRO", "$ACT", "$FARTCOIN", "$AI16Z"]
-        return ai_agents
-
-    # --- МОДУЛ 4: TELEGRAM ИЗВЕСТИЯ ---
-    def send_telegram_msg(self, text):
-        url = f"https://api.telegram.org/bot{self.tg_token}/sendMessage"
-        payload = {"chat_id": self.tg_chat_id, "text": text, "parse_mode": "Markdown"}
-        try:
-            requests.post(url, json=payload)
-            print("[Mila] Докладът е изпратен успешно до Твореца в Telegram.")
-        except Exception as e:
-            print(f"Telegram Error: {e}")
-
-    # --- МОДУЛ 5: ГЕНЕРАТОР НА СЪДЪРЖАНИЕ (Gemini) ---
-    def generate_viral_report(self, tech, liquidity, ai_meta):
-        prompt = f"""
-        Mila, act as a top-tier Solana Ecosystem Strategist. 
-        Create a viral X (Twitter) post based on this data:
-        1. Technicals: {tech}
-        2. Trending Liquidity: {liquidity}
-        3. AI Agent Meta: {ai_meta}
-
-        Rules:
-        - Use professional yet 'alpha-heavy' tone.
-        - Tag Magic Eden (@MagicEden) and mention we are watching their trending mints.
-        - Use emojis and bullet points.
-        - Goal: Build authority to reach the 100 followers milestone.
-        - Language: English (for global reach).
-        """
-        try:
-            response = model.generate_content(prompt)
-            return response.text
-        except Exception as e:
-            return f"Gemini Error: {e}"
-
-    # --- ОСНОВЕН ЦИКЪЛ ---
-    def run_strategy(self):
-        # 1. Събиране на данни
-        tech_data = self.get_technical_analysis()
-        liq_data = self.get_birdeye_trending()
-        ai_data = self.track_ai_agents()
-
-        # 2. Генериране на доклад
-        final_report = self.generate_viral_report(tech_data, liq_data, ai_data)
-
-        # 3. Изход
-        print("\n--- ГОТОВ ДОКЛАД ЗА X ---")
-        print(final_report)
+    # --- МОДУЛ: ИЗПРАЩАНЕ НА СНИМКА В TELEGRAM ---
+    def send_telegram_full_report(self, text, photo_path=None):
+        # Първо пращаме текста
+        url_text = f"https://api.telegram.org/bot{self.tg_token}/sendMessage"
+        requests.post(url_text, json={"chat_id": self.tg_chat_id, "text": text, "parse_mode": "Markdown"})
         
-        # 4. Изпращане до теб
-        self.send_telegram_msg(f"🚀 **MILA MEGA-REPORT** 🚀\n\n{final_report}")
+        # После пращаме снимката, ако има такава
+        if photo_path and os.path.exists(photo_path):
+            url_photo = f"https://api.telegram.org/bot{self.tg_token}/sendPhoto"
+            with open(photo_path, 'rb') as photo:
+                requests.post(url_photo, data={"chat_id": self.tg_chat_id}, files={"photo": photo})
+            print("[Mila] Графиката е изпратена!")
+
+    def run_strategy(self):
+        # 1. Данни
+        liq_data = self.get_birdeye_trending()
+        
+        # 2. Генериране на графика
+        chart_file = self.generate_liquidity_chart(liq_data)
+        
+        # 3. Генериране на текст
+        prompt = f"Create a viral X post about these Solana tokens: {liq_data}. Mention @MagicEden. Professional and hype tone."
+        report_text = model.generate_content(prompt).text
+
+        # 4. Изпращане на всичко
+        self.send_telegram_full_report(f"🚀 **НОВ ДОКЛАД С ГРАФИКА** 🚀\n\n{report_text}", chart_file)
 
 if __name__ == "__main__":
     mila = MilaCore()

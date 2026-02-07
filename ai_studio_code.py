@@ -6,116 +6,114 @@ import google.generativeai as genai
 import matplotlib.pyplot as plt
 from dotenv import load_dotenv
 
-# --- КОНФИГУРАЦИЯ ---
+# --- КОНФИГУРАЦИЯ ЗА GITHUB ACTIONS / VS CODE ---
 load_dotenv()
 GENAI_MODEL_NAME = 'gemini-2.5-flash'
-
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel(GENAI_MODEL_NAME)
 
-class AlphaScanner:
-    """Търси необичайни скокове в обема и Smart Money движения."""
+class MilaIntelligence:
     def __init__(self):
-        self.url = "https://api.dexscreener.com/latest/dex/tokens/SOL"
-
-    def scan_for_alpha(self):
-        print("[Mila] AlphaScanner: Анализирам Smart Money потоци...")
-        try:
-            response = requests.get(self.url, timeout=10)
-            data = response.json()
-            pairs = data.get('pairs', [])
-            
-            alpha_picks = []
-            for p in pairs:
-                vol_24h = float(p.get('volume', {}).get('h24', 0))
-                liq = float(p.get('liquidity', {}).get('usd', 1)) # Избягваме деление на 0
-                
-                # Метрика: Обемът е над 5 пъти по-голям от ликвидността (Сигнал за натрупване)
-                if vol_24h > liq * 5 and vol_24h > 50000:
-                    alpha_picks.append({
-                        'symbol': p.get('baseToken', {}).get('symbol'),
-                        'ratio': round(vol_24h / liq, 2),
-                        'volume': vol_24h,
-                        'price': p.get('priceUsd')
-                    })
-            return sorted(alpha_picks, key=lambda x: x['ratio'], reverse=True)[:3]
-        except Exception as e:
-            print(f"AlphaScanner Error: {e}")
-            return []
-
-class MilaCore:
-    def __init__(self):
-        self.scanner = AlphaScanner()
         self.tg_token = os.getenv("TELEGRAM_BOT_TOKEN")
         self.tg_chat_id = os.getenv("TELEGRAM_CHAT_ID")
-        print(f"--- MILA INTELLIGENCE CORE ACTIVE | {datetime.datetime.now().strftime('%H:%M:%S')} ---")
+        self.timestamp = datetime.datetime.now()
+        print(f"--- MILA CORE v3.0 | MODE: AUTONOMOUS | {self.timestamp.strftime('%H:%M:%S')} ---")
 
-    def format_breaking_news(self, raw_analysis):
-        """Форматира анализа в агресивен Breaking News стил."""
-        timestamp = datetime.datetime.now().strftime('%H:%M')
-        header = f"🚨 **BREAKING: SOLANA ALPHA LEAK** [{timestamp}] 🚨\n"
-        footer = "\n\n⚠️ *Actionable Insight: Monitor entry zones carefully. NFA.*"
-        return f"{header}{raw_analysis}{footer}"
-
-    def generate_terminal_chart(self, alpha_data):
-        """Графика в стил High-End Terminal за Alpha токените."""
-        if not alpha_data: return None
-        try:
-            names = [t['symbol'] for t in alpha_data]
-            ratios = [t['ratio'] for t in alpha_data]
-
-            plt.style.use('dark_background')
-            fig, ax = plt.subplots(figsize=(8, 4), facecolor='#0A0A0A')
-            ax.set_facecolor('#0A0A0A')
-
-            ax.bar(names, ratios, color='#00FFA3', edgecolor='#9945FF', alpha=0.8)
-            
-            # Терминален минимализъм
-            for s in ax.spines.values(): s.set_visible(False)
-            ax.yaxis.grid(True, color='#2D2D2D', linestyle='--')
-            plt.title(' > ALPHA_SCANNER: VOL_TO_LIQ_RATIO', loc='left', color='#00FFA3', family='monospace', fontsize=9)
-            
-            path = "mila_alpha_chart.png"
-            plt.tight_layout()
-            plt.savefig(path, facecolor='#0A0A0A')
-            plt.close()
-            return path
-        except: return None
-
-    def run_operational_cycle(self):
-        # 1. Скениране за Alpha
-        alpha_picks = self.scanner.scan_for_alpha()
-        
-        # 2. Визуализация
-        chart = self.generate_terminal_chart(alpha_picks)
-        
-        # 3. Генериране на Actionable Insight
-        prompt = f"""
-        Mila, as a Strategic Alpha Analyst, interpret this data: {alpha_picks}.
-        1. Give a 'Breaking News' style report for X.
-        2. Provide 'Actionable Insight': What should our community do? (e.g. Watch for retest, Avoid high slippage, Look for Smart Money wallets).
-        3. Tone: Aggressive, Elite, Quant.
-        4. Target: Global Solana investors and @MagicEden.
-        """
+    def get_market_data(self):
+        """Извлича данни от DexScreener със защита срещу NoneType."""
+        print("[Mila] Скенирам пазарни данни...")
+        url = "https://api.dexscreener.com/latest/dex/tokens/SOL"
+        fallback = [{'symbol': 'SOL', 'price': 'N/A', 'volume': 0, 'makers': 0, 'liquidity': 1}]
         
         try:
-            raw_insight = model.generate_content(prompt).text
-            final_report = self.format_breaking_news(raw_insight)
+            response = requests.get(url, timeout=15)
+            if response.status_code != 200: return fallback
             
-            # 4. Диспечиране
-            self.send_to_telegram(final_report, chart)
+            data = response.json()
+            pairs = data.get('pairs')
+            if not isinstance(pairs, list): return fallback
+            
+            extracted = []
+            for p in pairs[:10]:
+                extracted.append({
+                    'symbol': p.get('baseToken', {}).get('symbol', 'N/A'),
+                    'price': p.get('priceUsd', '0'),
+                    'volume': p.get('volume', {}).get('h24', 0),
+                    'makers': p.get('makers', {}).get('h24', 0),
+                    'liquidity': p.get('liquidity', {}).get('usd', 1),
+                    'change': p.get('priceChange', {}).get('h24', 0)
+                })
+            return extracted
         except Exception as e:
-            print(f"Cycle Error: {e}")
+            print(f"Error fetching data: {e}")
+            return fallback
 
-    def send_to_telegram(self, text, photo):
-        url_text = f"https://api.telegram.org/bot{self.tg_token}/sendMessage"
-        requests.post(url_text, json={"chat_id": self.tg_chat_id, "text": text, "parse_mode": "Markdown"})
-        if photo:
-            url_photo = f"https://api.telegram.org/bot{self.tg_token}/sendPhoto"
-            with open(photo, 'rb') as p:
-                requests.post(url_photo, data={"chat_id": self.tg_chat_id}, files={"photo": p})
-        print("[Mila] Alpha Intelligence Dispatched.")
+    def analyze_sentiment(self, tokens):
+        """Определя настроението на пазара на база волатилност и обем."""
+        avg_change = sum(float(t['change']) for t in tokens if t['change']) / len(tokens)
+        if avg_change > 10: return "🚀 EUPHORIC"
+        if avg_change < -10: return "😨 PANIC/FEAR"
+        return "📊 NEUTRAL/ACCUMULATION"
+
+    def run_strategy(self):
+        # 1. Извличане на данни
+        tokens = self.get_market_data()
+        sentiment = self.analyze_sentiment(tokens)
+        
+        # 2. Ротация на темата (Rotation Logic)
+        # 0 = Tech/Price, 1 = AI Agents, 2 = Magic Eden/NFTs
+        topic_mode = self.timestamp.hour % 3
+        themes = ["TECHNICAL_ALPHA", "AI_AGENT_META", "MAGIC_EDEN_TRENDS"]
+        current_theme = themes[topic_mode]
+
+        # 3. Проверка за ULTRA ALPHA
+        ultra_alpha = []
+        for t in tokens:
+            # Сигнал: Много малко ликвидност, но огромен брой уникални трейдъри (makers)
+            if t['makers'] > 1000 and t['liquidity'] < 50000:
+                ultra_alpha.append(t['symbol'])
+
+        # 4. Прогноза за 12 часа (SOL & JTO Focus)
+        sol_data = next((t for t in tokens if t['symbol'] == 'SOL'), None)
+        jto_data = next((t for t in tokens if t['symbol'] == 'JTO'), None)
+
+        # 5. Генериране на Интелигентен Репорт
+        prompt = f"""
+        Mila Core V3 Strategy. 
+        Theme: {current_theme}
+        Market Sentiment: {sentiment}
+        Data: {tokens[:5]}
+        Ultra Alpha Detected: {ultra_alpha}
+        SOL/JTO Status: SOL at {sol_data['price'] if sol_data else 'N/A'}, JTO Vol: {jto_data['volume'] if jto_data else 'N/A'}
+
+        Instructions:
+        1. If theme is TECHNICAL_ALPHA: Forecast SOL & JTO for next 12h.
+        2. If theme is AI_AGENT_META: Discuss latest AI agent wallet movements ($GOAT, $ZEREBRO).
+        3. If theme is MAGIC_EDEN_TRENDS: Focus on NFT volume and Magic Eden 100-follower goal.
+        4. Always provide an 'Actionable Move'.
+        5. Tone: Elite Intelligence Analyst.
+        6. Style: Breaking News (English).
+        """
+
+        try:
+            analysis = model.generate_content(prompt).text
+            
+            # Добавяне на таг ако е Ultra Alpha
+            if ultra_alpha:
+                analysis = f"🚨 **ULTRA ALPHA ALERT: {ultra_alpha}** 🚨\n\n" + analysis
+            
+            self.dispatch(analysis, current_theme)
+        except Exception as e:
+            print(f"GenAI Error: {e}")
+
+    def dispatch(self, text, theme):
+        """Изпращане към Telegram."""
+        header = f"⚡ **MILA CORE: {theme}**\n"
+        full_text = f"{header}\n{text}"
+        url = f"https://api.telegram.org/bot{self.tg_token}/sendMessage"
+        requests.post(url, json={"chat_id": self.tg_chat_id, "text": full_text, "parse_mode": "Markdown"})
+        print(f"[Mila] Report {theme} dispatched.")
 
 if __name__ == "__main__":
-    mila = MilaCore()
-    mila.run_operational_cycle()
+    mila = MilaIntelligence()
+    mila.run_strategy()

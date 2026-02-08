@@ -3,7 +3,7 @@ import os
 
 # КОНФИГУРАЦИЯ
 # Постави тук твоя API Key от Google AI Studio
-API_KEY = AIzaSyBVZ236pk8QbksXgyHNpCO_dFJQl0BAdEU
+API_KEY = "AIzaSyBVZ236pk8QbksXgyHNpCO_dFJQl0BAdEU"
 
 genai.configure(api_key=API_KEY)
 

@@ -1,88 +1,105 @@
 import os
+import json
 import datetime
+import re
 from flask import Flask, request, jsonify
-import pandas as pd
-import matplotlib.pyplot as plt
 from dotenv import load_dotenv
 
-# --- CONFIGURATION ---
+# --- INITIALIZATION ---
 load_dotenv()
 app = Flask(__name__)
 
-# Глобален контейнер за данни (In-memory buffer)
-data_buffer = []
+# СТРАТЕГИЧЕСКИ АДРЕСИ ЗА МОНИТОРИНГ
+MONITORED_ADDRESSES = {
+    "JUP6Lkbuej7is598XDn7Bms6p71J9r7onq9s48SUnAn": "Jupiter Aggregator",
+    "2S6mPGm8kHtbhiqa44e8yYAU5nYMLoqxUQa9T2w3UGrN": "Zerebro AI",
+    "Dfhv69v86X874UicFayS9uPAGf9hXisP59N6pX9vpump": "Pippin AI"
+}
 
-class MilaHeliusProcessor:
+class MilaHeliusListenerV1_1:
     def __init__(self):
-        print(f"--- MILA HELIUS LISTENER ACTIVE | PORT: 5000 | {datetime.datetime.now().strftime('%H:%M')} ---")
+        self.archive_dir = "ARCHIVE"
+        if not os.path.exists(self.archive_dir):
+            os.makedirs(self.archive_dir)
+        print(f"--- MILA HELLUS LISTENER v1.1 ACTIVE | {datetime.datetime.now().strftime('%H:%M:%S')} ---")
 
-    def process_incoming_data(self, json_data):
-        """Превръща суровия JSON в Pandas DataFrame и го добавя към буфера."""
+    def _save_to_archive(self, data):
+        """Записва транзакцията в JSON формат в папка ARCHIVE."""
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        filename = f"txn_{timestamp}.json"
+        filepath = os.path.join(self.archive_dir, filename)
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+
+    def _check_whale_alert(self, description):
+        """Идентифицира транзакции над 100 SOL в описанието."""
         try:
-            # Helius праща списък от транзакции
-            df = pd.json_normalize(json_data)
+            # Търсене на цифри последвани от SOL
+            match = re.search(r'(\d+(\.\d+)?)\s*SOL', description)
+            if match:
+                amount = float(match.group(1))
+                if amount > 100:
+                    print(f"\n[!!!] WHALE ALERT DETECTED: {amount} SOL [!!!]")
+                    return True
+        except Exception:
+            pass
+        return False
+
+    def process_payload(self, payload):
+        """Обработва входящия поток от Helius."""
+        for txn in payload:
+            description = txn.get('description', '')
+            source = txn.get('source', 'Unknown')
+            signature = txn.get('signature', 'N/A')
             
-            # Извличане на ключови метрики: Тип транзакция, Слот, Подпис
-            essential_info = df[['type', 'slot', 'signature', 'timestamp']]
-            data_buffer.append(essential_info)
+            # Проверка за участие на мониторираните адреси
+            involved_accounts = [acc.get('account', '') for acc in txn.get('accountData', [])]
             
-            print(f"[MILA] Ingested {len(essential_info)} transactions. Buffer size: {len(data_buffer)}")
-            
-            # Визуализация при натрупване на критична маса (напр. 5 пакета данни)
-            if len(data_buffer) >= 5:
-                self.visualize_activity()
-                
-        except Exception as e:
-            print(f"[ERROR] Data processing failed: {e}")
+            label = "[GENERAL ACTIVITY]"
+            is_monitored = False
 
-    def visualize_activity(self):
-        """Генерира графика на активността в реално време."""
-        if not data_buffer:
-            return
+            for address, name in MONITORED_ADDRESSES.items():
+                if address in str(txn) or address in involved_accounts:
+                    is_monitored = True
+                    if name == "Jupiter Aggregator":
+                        label = "[CAPITAL FLOW]"
+                    else:
+                        label = "[AI AGENT ACTIVITY]"
+                    break
 
-        print("[Mila] Generating real-time activity chart...")
-        full_df = pd.concat(data_buffer, ignore_index=True)
-        
-        # Броене на типовете транзакции (Swap, Transfer, NFT_Mint и т.н.)
-        activity_counts = full_df['type'].value_counts()
+            # Извличане на метаданни
+            extracted_data = {
+                "timestamp": datetime.datetime.now().isoformat(),
+                "label": label,
+                "description": description,
+                "source": source,
+                "signature": signature,
+                "raw_data": txn
+            }
 
-        plt.style.use('dark_background')
-        fig, ax = plt.subplots(figsize=(10, 6), facecolor='#0A0A0A')
-        ax.set_facecolor('#0A0A0A')
+            # Принтиране в терминала
+            print(f"{label} Source: {source} | Signature: {signature[:10]}...")
+            print(f"Details: {description}")
 
-        activity_counts.plot(kind='bar', color='#00FFA3', edgecolor='#9945FF', ax=ax)
+            # Проверка за китове
+            self._check_whale_alert(description)
 
-        # Terminal Aesthetics
-        for s in ax.spines.values(): s.set_visible(False)
-        ax.yaxis.grid(True, color='#2D2D2D', linestyle='--', alpha=0.5)
-        
-        plt.title(" > MILA_HELIUS_MONITOR: TRANSACTION_TYPES_FLOW", 
-                  loc='left', color='#00FFA3', family='monospace', fontsize=10, pad=20)
-        plt.xticks(rotation=45, family='monospace', color='#00FFA3')
-        plt.yticks(family='monospace', color='#9945FF')
+            # Архивиране
+            self._save_to_archive(extracted_data)
 
-        path = "helius_realtime_activity.png"
-        plt.tight_layout()
-        plt.savefig(path, facecolor='#0A0A0A', dpi=120)
-        plt.close()
-        print(f"[VISUALIZER] Activity map secured: {path}")
-        
-        # Изчистване на буфера след визуализация
-        data_buffer.clear()
-
-# Инициализация на процесора
-processor = MilaHeliusProcessor()
+# Инициализация на ядрото
+listener = MilaHeliusListenerV1_1()
 
 @app.route('/webhook', methods=['POST'])
-def helius_webhook():
-    """Endpoint за приемане на данни от Helius."""
-    raw_data = request.json
-    if not raw_data:
-        return jsonify({"status": "error", "message": "Empty payload"}), 400
-
-    processor.process_incoming_data(raw_data)
+def webhook():
+    data = request.json
+    if not data:
+        return jsonify({"status": "error"}), 400
+    
+    listener.process_payload(data)
     return jsonify({"status": "success"}), 200
 
 if __name__ == '__main__':
-    # Стартиране на локалния сървър
+    # Стартиране на сървъра
     app.run(port=5000)

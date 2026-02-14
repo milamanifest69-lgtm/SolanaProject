@@ -6,14 +6,13 @@ import re
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 
-# --- INITIALIZATION ---
 load_dotenv()
 app = Flask(__name__)
 
-# КОНФИГУРАЦИЯ
-# Променяме прага на 100 SOL за чиста Whale Alpha
+# ПЪТ КЪМ ЛОГА
 ARCHIVE_PATH = "/root/SolanaProject/ARCHIVE/intelligence_log.csv"
-MIN_SOL_THRESHOLD = 100.0 
+# ВРЕМЕННО НАМАЛЕН ПРАГ ЗА ТЕСТ: 1.0 SOL
+MIN_SOL_THRESHOLD = 1.0 
 
 MONITORED_ADDRESSES = {
     "JUP6Lkbuej7is598XDn7Bms6p71J9r7onq9s48SUnAn": "Jupiter",
@@ -22,18 +21,13 @@ MONITORED_ADDRESSES = {
 }
 
 def init_csv():
-    """Инициализира CSV файла със заглавен ред, ако не съществува."""
     if not os.path.exists(ARCHIVE_PATH):
-        try:
-            with open(ARCHIVE_PATH, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
-                writer.writerow(['timestamp', 'label', 'amount_sol', 'description', 'signature'])
-            print(f"[SYSTEM] CSV Log initialized at {ARCHIVE_PATH}")
-        except Exception as e:
-            print(f"[CRITICAL] CSV Initialization failed: {e}")
+        with open(ARCHIVE_PATH, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['timestamp', 'label', 'amount_sol', 'description', 'signature'])
+        print(f"[SYSTEM] CSV Log initialized.")
 
 def extract_sol_amount(description):
-    """Извлича количеството SOL от текстовото описание на Helius."""
     if not description: return 0.0
     try:
         match = re.search(r'(\d+(\.\d+)?)\s*SOL', description)
@@ -47,16 +41,17 @@ def webhook():
 
     if not isinstance(data, list): data = [data]
 
+    # ТЕРМИНАЛЕН ЛОГ ЗА ВСЯКА ЗАЯВКА
+    print(f"[DEBUG] Received {len(data)} transactions from Helius.")
+
     try:
         with open(ARCHIVE_PATH, 'a', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            
             for txn in data:
                 description = txn.get('description', '')
                 amount = extract_sol_amount(description)
                 
-                # ЛОГИКА ЗА ФИЛТРИРАНЕ: AI Агенти или големи китове (100+ SOL)
-                is_ai_agent = any(addr in str(txn) for addr in ["2S6mPGm8", "Dfhv69v8"])
+                is_ai_agent = any(addr in str(txn) for addr in MONITORED_ADDRESSES.keys())
                 is_whale = amount >= MIN_SOL_THRESHOLD
                 
                 if is_ai_agent or is_whale:
@@ -65,11 +60,14 @@ def webhook():
                         datetime.datetime.now().isoformat(),
                         label,
                         amount,
-                        description[:200], # Ограничаваме дължината
+                        description[:200],
                         txn.get('signature', 'N/A')
                     ])
-                    # Принтираме само важните събития в терминала
-                    print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {label}: {amount} SOL")
+                    print(f"!!! [MATCH] {label}: {amount} SOL !!!")
+                else:
+                    # ЛОГ ЗА ФИЛТРИРАНИТЕ (за да знаеш, че скриптът работи)
+                    print(f"[FILTERED] Txn ignored: {amount} SOL | Agent: {is_ai_agent}")
+                    
     except Exception as e:
         print(f"[ERROR] Logging failed: {e}")
 
@@ -77,5 +75,4 @@ def webhook():
 
 if __name__ == '__main__':
     init_csv()
-    # Публичен хост за приемане на данни от Helius
     app.run(host='0.0.0.0', port=5000)

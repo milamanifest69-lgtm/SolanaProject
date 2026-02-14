@@ -17,49 +17,43 @@ MONITORED_ADDRESSES = {
     "Dfhv69v86X874UicFayS9uPAGf9hXisP59N6pX9vpump": "Pippin AI"
 }
 
-class MilaHeliusListenerV1_4:
+class MilaHeliusLinuxListener:
     def __init__(self):
-        # Използване на абсолютно чист път
-        self.base_dir = os.path.dirname(os.path.abspath(__file__))
-        self.archive_dir = os.path.normpath(os.path.join(self.base_dir, "ARCHIVE"))
-        
+        # Абсолютен път за Linux среда
+        self.archive_dir = "/root/SolanaProject/ARCHIVE"
         self._ensure_dir()
-        print(f"--- MILA HELLUS LISTENER v1.4 ACTIVE | {datetime.datetime.now().strftime('%H:%M:%S')} ---")
+        print(f"--- MILA HELLUS LINUX LISTENER v1.5 ACTIVE | {datetime.datetime.now().strftime('%H:%M:%S')} ---")
         self._test_write()
 
     def _ensure_dir(self):
-        """Форсира създаването на папката, ако Windows я блокира."""
+        """Осигурява съществуването на папката в Ubuntu."""
         if not os.path.exists(self.archive_dir):
             try:
-                os.makedirs(self.archive_dir, exist_ok=True)
-                print(f"[SYSTEM] Directory created: {self.archive_dir}")
+                os.makedirs(self.archive_dir, mode=0o755, exist_ok=True)
+                print(f"[SYSTEM] Linux Directory created: {self.archive_dir}")
             except Exception as e:
                 print(f"[CRITICAL] Directory creation failed: {e}")
 
     def _test_write(self):
-        """Прави тестов запис за проверка на правата (Permissions)."""
+        """Проверка на правата за запис в Linux."""
         try:
-            test_path = os.path.join(self.archive_dir, "startup_test.txt")
+            test_path = os.path.join(self.archive_dir, "linux_startup_test.txt")
             with open(test_path, "w") as f:
-                f.write(f"Mila startup test at {datetime.datetime.now()}")
-            print("[SYSTEM] File system write permissions: VERIFIED")
+                f.write(f"Mila Linux startup test at {datetime.datetime.now()}")
+            print(f"[SYSTEM] Linux File system: VERIFIED at {self.archive_dir}")
         except Exception as e:
-            print(f"[CRITICAL] Write permission denied: {e}")
-            print("СЪВЕТ: Стартирай VS Code като Администратор или премести проекта извън папката Documents.")
+            print(f"[CRITICAL] Linux Write permission denied: {e}")
 
     def _save_raw_json(self, data):
         try:
-            self._ensure_dir()
             filepath = os.path.join(self.archive_dir, "raw_test.json")
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=4)
-            print(f"[DATA] Raw JSON secured.")
         except Exception as e:
             print(f"[ERROR] Raw JSON save failed: {e}")
 
     def _save_to_archive(self, data):
         try:
-            self._ensure_dir()
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
             filename = f"txn_{timestamp}.json"
             filepath = os.path.join(self.archive_dir, filename)
@@ -116,7 +110,7 @@ class MilaHeliusListenerV1_4:
             return False
 
 # Инициализация
-listener = MilaHeliusListenerV1_4()
+listener = MilaHeliusLinuxListener()
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -126,4 +120,5 @@ def webhook():
     return jsonify({"status": "received", "processed": success}), 200
 
 if __name__ == '__main__':
-    app.run(port=5000)
+    # Настройка за работа в публична мрежа (0.0.0.0)
+    app.run(host='0.0.0.0', port=5000)
